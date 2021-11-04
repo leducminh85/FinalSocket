@@ -1,0 +1,2 @@
+Key.cmdKey.cmdspai
+Key.ctrl_lKey.shiftKey.cmdSKey.ctrl_l\x16Key.shiftKey.cmdSKey.ctrl_l\x16Key.shiftKey.cmdSKey.ctrl_l\x16Key.shiftKey.cmdKey.shiftSKey.ctrl_l\x16Key.ctrl_l\x1aKey.ctrl_l\x16Key.ctrl_l\x1aKey.ctrl_l\x16Key.ctrl_lKey.ctrl_l\x1aKey.ctrl_l\x16Key.cmdKey.shiftSKey.ctrl_l\x16Key.shiftKey.cmdSKey.ctrl_l\x18Key.ctrl_l\x16Key.shiftKey.cmdSKey.ctrl_l\x03\x16
