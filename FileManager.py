@@ -1,7 +1,8 @@
 import os
+import string
+from ctypes import windll
 
 def view_folder(path):
-    # list of tuple (path, is this a direction)
     try:
         if not os.path.isdir(path):
             list_dir = []
@@ -13,4 +14,15 @@ def view_folder(path):
     except Exception:
         return []
 
-#print(view_folder("C:\\"))
+
+
+def get_drives():
+    drives = []
+    bitmask = windll.kernel32.GetLogicalDrives()
+    for letter in string.ascii_uppercase:
+        if bitmask & 1:
+            drives.append(letter)
+        bitmask >>= 1
+
+    return drives
+

@@ -52,7 +52,7 @@ SHOW_MAC_ADDR = "SHOW MAC ADDR"
 LOG_OUT = "LOG OUT"
 LOCK_KEYBOARD = "LOCK KEYBOARD"
 UNLOCK_KEYBOARD = "UNLOCK KEYBOARD"
-
+GET_DRIVES = "GET DRIVES"
 
 client = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 # client.connect(ADDR)
@@ -156,15 +156,18 @@ def doProcessRunning():
 
 
             def KILL_PR_EXECUTE(event):
-                send(KILL_PROCESS_VIA_PID)
                 kill_this_pid = entry.get()
-                send1(client,str(kill_this_pid))
-                succeed = recv1(client)
-                if succeed == "True":
-                    
-                    mbox.showinfo(None,"Operation compeleted")
+                if str(kill_this_pid) == "":
+                    pass
                 else:
-                    mbox.showinfo(None,"Process not found")
+                    send(KILL_PROCESS_VIA_PID)
+                    send1(client,str(kill_this_pid))
+                    succeed = recv1(client)
+                    if succeed == "True":
+                        
+                        mbox.showinfo(None,"Operation compeleted")
+                    else:
+                        mbox.showinfo(None,"Process not found")
 
             RootPR_KILL = Toplevel(RootPR)
             RootPR_KILL.title(40*" "+"KILL")
@@ -206,7 +209,10 @@ def doProcessRunning():
             def START_PR_EXECUTE():
                 send(START_PROCESS)
                 proc = entry.get()
-                send1(client, proc)
+                if str(proc) =="":
+                    pass
+                else:
+                    send1(client, proc)
                 
 
             RootPR_START = Toplevel(RootPR)
@@ -281,8 +287,9 @@ def doKEYSTROKE():
 
         def HOOK():
             global hooked
-            hooked=True
-            send1(client,KEYLOGGING)
+            if hooked == False:
+                hooked=True
+                send1(client,KEYLOGGING)
             
         def A():
             threading.Thread(target=HOOK).start()
@@ -316,7 +323,9 @@ def doKEYSTROKE():
         def C():
             threading.Thread(target=PRINT).start()
         def DELETE():
+            text.config(state="normal")
             text.delete(1.0,'end')
+            text.config(state="disabled")
         def D():
             threading.Thread(target=DELETE).start()
         def Back():
@@ -338,7 +347,9 @@ def doKEYSTROKE():
             else:
                 mbox.showinfo(None,"Error occurred while trying to unlock server's keyboard")
 
-
+        def disable_event():
+            send(STOP_KEYLOGGING)
+            CloseWindow(RootK)
 
         #-----------------------------------------------------------------------------------    
 
@@ -380,6 +391,9 @@ def doKEYSTROKE():
         #TABLE
         text = Text(RootK)
         text.place(x = 60, y = 90, width = 575, height = 250)
+        text.config(state="disabled")
+        RootK.protocol("WM_DELETE_WINDOW", disable_event)
+
     else:
         mbox.showinfo(None,"No connection established!")
 
@@ -865,17 +879,29 @@ current_directory=""
 def doShowFileExplorer():
     global connected
     if connected == True:
-
+        send(GET_DRIVES)
+        list_drive =[]
+        drives_count = recv1(client)
+        drives_count = int(drives_count)
+        for i in range(drives_count):
+            drive = client.recv(1).decode(FORMAT)
+            list_drive.append(drive)
+        
         def BackToMenu():
             CloseWindow(RootFE)
         def Delete():
+            global current_file
+            global current_directory
             send(DELETE_FILE)
             dir=""
             if(current_file ==""):
                 dir = current_directory
-            else: dir = current_file
+            else: 
+                dir = current_file
+                current_file=""
             send1(client,dir)
             print(dir)
+            current_directory = current_directory[:(current_directory.rfind("/")+1)]
             reply = recv1(client)
             if reply == "DONE":
                 tv.delete(*tv.get_children())
@@ -884,7 +910,6 @@ def doShowFileExplorer():
                 send(current_directory)
 
                 list_len = int(recv1(client))
-                
                 for i in range(list_len):
                     name = recv1(client)
                     is_dir = int(recv1(client))
@@ -893,6 +918,8 @@ def doShowFileExplorer():
                     else:
                         tv.insert('','end', text=name)
                 mbox.showinfo(None,f"Deleted {dir}.")
+                
+                
             elif reply == "FAIL":
                 mbox.showinfo(None,f"Error occurred while trying to delete {dir}.")
 
@@ -901,7 +928,8 @@ def doShowFileExplorer():
             dir=""
             if(current_file ==""):
                 dir = current_directory
-            else: dir = current_file
+            else: 
+                dir = current_file
             send1(client,dir)
             reply = recv1(client)
             if reply == "DONE":
@@ -927,14 +955,17 @@ def doShowFileExplorer():
             global current_directory
             if(current_directory==""):
                 return
-            elif (current_directory=='C:/' or current_directory == "D:/"):
+            # elif (current_directory=='C:/' or current_directory == "D:/"):
+            elif (current_directory[:1] in list_drive):
+            
                 tv.delete(*tv.get_children())
                 current_directory=""
                 SearchBox.config(state="normal")
                 SearchBox.delete('1.0','end')
                 SearchBox.config(state="disabled")
-                tv.insert('','end', text='> C:', open=True)
-                tv.insert('','end', text='> D:', open=True)
+                for drive in list_drive:
+                    tv.insert('','end', text='> '+drive+':')
+                
 
             else:
             
@@ -988,8 +1019,7 @@ def doShowFileExplorer():
                 
                 SearchBox.config(state="normal")
                 SearchBox.insert('end',dir)
-                if(list_len!=0):
-                    SearchBox.insert('end','/')
+                SearchBox.insert('end','/')
                 SearchBox.config(state="disabled")
                 
 
@@ -1001,7 +1031,12 @@ def doShowFileExplorer():
                     else:
                         tv.insert('','end', text=name)
             else:
-                current_file = current_directory + dir
+                if current_file=="":
+                    current_file = current_directory + dir
+                    SearchBox.config(state="normal")
+                    SearchBox.insert('end',dir)
+                
+                    SearchBox.config(state="disabled")
             
         
         #Init TreeView
@@ -1016,13 +1051,13 @@ def doShowFileExplorer():
         ybar = tk.Scrollbar(RootFE,orient=tk.VERTICAL, command=tv.yview)
         tv.configure(yscroll = ybar.set)
 
-        
+        for drive in list_drive:
+            directory='> '+ drive+ ':'  
+            tv.insert('','end', text=directory)
+
         
         tv.bind("<Double-1>", OnDoubleClick)
-        directory='> C:'                                        #Change directory here 
-        tv.insert('','end', text=directory, open=True)
-        directory='> D:'                                        #Change directory here 
-        tv.insert('','end', text=directory, open=True)
+        
         
         
         
@@ -1042,9 +1077,9 @@ def doShowFileExplorer():
         Edit_button.place(x = 50, y = 100)
 
         #Dỉrectory
-        SearchBox = Text(RootFE, height = 1, width = 65)
+        SearchBox = Text(RootFE, height = 2, width = 65)
         SearchBox.config(state="disabled")
-        SearchBox.place(x = 200, y = 100)
+        SearchBox.place(x = 200, y = 80)
 
         #Back
         Back_button = Button(RootFE, bg = '#ffffff', text = "Back", width = 15, height = 3, command = BackToMenu)
@@ -1074,7 +1109,7 @@ def doShutDown():
     if connected == True:
         ans = mbox.askquestion("Server user profile log off","Do you really want to log off server user profile?")
         if ans =='yes':
-            send(client,SHUTDOWN)
+            send(SHUTDOWN)
             info = recv1(client)
             mbox.showinfo(None,info)
         else:
@@ -1121,10 +1156,10 @@ def connect():
     try:
         client.connect(address)
         connected = True
+        InputField.config(state="disable")
         mbox.showinfo(None,f"Connection establish!\n Server IP: {IP_server}")
     except Exception:
         connected =False
-        print(Exception)
         mbox.showinfo(None,"Server not found.")
 
 # EXIT == DISCONNECT FROM SERVER------------------------------------
@@ -1173,6 +1208,11 @@ canvas.create_rectangle(50, 175, 875, 565,
 canvas.place( x = 0, y = 0)
 
 
+def disable_event():
+    send(DISCONNECT_MESSAGE)
+    Client_windows.destroy()
+
+
 #Create menu
 InputField = Entry(Client_windows, width = 30)
 InputField.place(x = 250, y = 50)
@@ -1211,6 +1251,7 @@ AppRunning_button.place(x = 645, y = 220)
 RegistryOverwrite_button = Button(Client_windows, bg = '#02a9f7',  text = "Fix \n Registry", width = 10, height = 12, command= doFixRegistry)
 RegistryOverwrite_button.place(x = 745, y = 220)
 
+Client_windows.protocol("WM_DELETE_WINDOW", disable_event)
 
 
 

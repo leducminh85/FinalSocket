@@ -8,7 +8,7 @@ import win32gui
 def enum_running_process():
     f=wmi.WMI()
     list_proc=[]
-    print("pid   Process name")
+    
     for process in f.Win32_Process():
         list_proc.append([process.Name,str(process.ProcessID),str(process.ThreadCount)])
     return list_proc
